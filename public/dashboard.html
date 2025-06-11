@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mon Dashboard TikTok</title>
+    <link
+      href="/node_modules/bootstrap/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="p-5 bg-light">
+    <div class="container">
+      <h2>Pose ta question à Ollama</h2>
+      <form id="ollama-form">
+        <input
+          type="text"
+          id="prompt"
+          placeholder="Ta question ici..."
+          required
+        />
+        <button type="submit">Envoyer</button>
+      </form>
+      <div id="response"></div>
+
+      <h1 class="mb-4">🎯 Mes Plans d'Action TikTok</h1>
+
+      <div class="mb-4">
+        <label for="contextSelect" class="form-label">Choisir un plan :</label>
+        <select id="contextSelect" class="form-select">
+          <option disabled selected>Chargement...</option>
+        </select>
+      </div>
+
+      <div
+        id="contextDetails"
+        class="mb-4 p-3 bg-white border rounded shadow-sm"
+        style="display: none"
+      >
+        <h5>📋 Détails du Plan</h5>
+        <pre id="contextContent" class="bg-light p-2 rounded"></pre>
+      </div>
+
+      <div id="chatBox" style="display: none">
+        <h5>💬 Discuter avec ce plan</h5>
+        <input
+          type="text"
+          id="userInput"
+          class="form-control mb-2"
+          placeholder="Ex : Ajoute une intro dynamique"
+        />
+        <button class="btn btn-primary" onclick="simulateAI()">Envoyer</button>
+        <div id="aiResponse" class="mt-3 text-success"></div>
+      </div>
+    </div>
+
+    <script>
+      document
+        .getElementById("ollama-form")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const prompt = document.getElementById("prompt").value;
+
+          const responseDiv = document.getElementById("response");
+          responseDiv.textContent = "Chargement...";
+
+          try {
+            const res = await fetch("http://localhost:3000/ask", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ prompt }),
+            });
+
+            const data = await res.json();
+
+            responseDiv.textContent = data.answer || "Pas de réponse.";
+          } catch (error) {
+            console.error(error);
+            responseDiv.textContent = "Erreur lors de la requête.";
+          }
+        });
+    </script>
+  </body>
+</html>
