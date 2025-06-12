@@ -1,5 +1,34 @@
-{
-  "objectif": "Créer des vidéos courtes avec les plus beaux buts",
-  "contenu": ["But de Ronaldo vs Porto", "But de Messi en solo"],
-  "idées_IA": ["Ajouter une intro TikTok engageante", "Utiliser effet ralenti"]
-}
+[
+  {
+    "role": "user",
+    "content": "Bonjour, je m'appelle Clément, retient le !"
+  },
+  {
+    "role": "assistant",
+    "content": "Bonjour Clément ! Enchanté de faire votre connaissance ! Qu'est-ce que vous avez envie de discuter ou apprendre aujourd'hui ?"
+  },
+  {
+    "role": "user",
+    "content": "Peux tu me rappeler mon prénom stp"
+  },
+  {
+    "role": "assistant",
+    "content": "Bonjour Clément ! Je ne suis pas mémoire, mais je peux vérifier facilement ! Votre prénom est bien Clément, c'est exact ! Qu'est-ce que vous souhaitez discuter ou apprendre aujourd'hui ?"
+  },
+  {
+    "role": "user",
+    "content": "Salut, je m'appelle Clément. Je suis passionné de football et je vis à Dijon."
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Clément ! Ahah, bien sûr, je me souviens de ton prénom maintenant ! Et cool que tu sois passionné de football ! Dijon est une ville charmante, j'imagine que tu es fan des Borges ? Qu'est-ce qui t'fait aimer tant le football ?"
+  },
+  {
+    "role": "user",
+    "content": "Est-ce que tu peux me redire où j'habite et ce que j'aime ?"
+  },
+  {
+    "role": "assistant",
+    "content": "Je me souviens ! Vous habitez à Dijon et vous êtes passionné de football !"
+  }
+]

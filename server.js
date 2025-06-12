@@ -10,70 +10,76 @@ app.use(express.static("public"));
 app.use(express.json());
 
 const memoryDir = path.join(__dirname, "memory");
-if (!fs.existsSync(memoryDir)) fs.mkdirSync(memoryDir, { recursive: true });
+if (!fs.existsSync(memoryDir)) fs.mkdirSync(memoryDir);
 
-function getMemPath(name) {
+function memPath(name) {
   return path.join(memoryDir, `${name}.json`);
 }
-function readMem(name) {
-  const file = getMemPath(name);
-  if (!fs.existsSync(file)) return [];
-  return JSON.parse(fs.readFileSync(file, "utf8"));
+function loadMem(name = "default") {
+  try {
+    const content = fs.readFileSync(memPath(name), "utf8");
+    const data = JSON.parse(content);
+    // Vérifie que c’est bien un tableau
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [
+      {
+        role: "system",
+        content: "Tu es un assistant utile et tu réponds en français.",
+      },
+    ];
+  }
 }
-function writeMem(name, mem) {
-  fs.writeFileSync(getMemPath(name), JSON.stringify(mem, null, 2));
+
+function saveMem(name, mem) {
+  fs.writeFileSync(memPath(name), JSON.stringify(mem, null, 2));
 }
 
 app.get("/memories", (req, res) => {
-  const files = fs.readdirSync(memoryDir).filter((f) => f.endsWith(".json"));
-  res.json(files.map((f) => f.replace(".json", "")));
+  const names = fs
+    .readdirSync(memoryDir)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => f.replace(".json", ""));
+  res.json(names);
 });
 
 app.get("/memories/:name", (req, res) => {
-  res.json(readMem(req.params.name));
+  res.json(loadMem(req.params.name));
 });
 
 app.post("/ask", (req, res) => {
-  const systemPrompt = `Tu es une intelligence artificielle assistante. Voici l'historique de la conversation entre toi et l'utilisateur. Tu dois répondre de manière cohérente, logique, et concise en français, en tenant compte de ce qui a déjà été dit.\n\n`;
-
-  const fullPrompt =
-    systemPrompt +
-    mem
-      .map(
-        (m) =>
-          `${m.role === "user" ? "Utilisateur" : "Assistant"} : ${m.content}`
-      )
-      .join("\n") +
-    "\nAssistant :";
-
-  const { prompt, memoryName } = req.body;
-  const memName = memoryName || "default";
-  const mem = readMem(memName);
+  const { prompt, memoryName = "default" } = req.body;
+  const mem = loadMem(memoryName);
   mem.push({ role: "user", content: prompt });
 
-  const messages = mem
-    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-    .join("\n");
-  const ollamaPrompt = `${messages}\nAssistant:`;
+  const fullPrompt =
+    mem
+      .map((m) =>
+        m.role === "system"
+          ? ""
+          : `${m.role === "user" ? "Utilisateur" : "Assistant"} : ${m.content}`
+      )
+      .filter(Boolean)
+      .join("\n") + "\nAssistant :";
 
-  const child = spawn("ollama", ["run", "mistral"], {
+  const child = spawn("ollama", ["run", "llama3"], {
     stdio: ["pipe", "pipe", "pipe"],
     shell: true,
   });
-  let out = "";
 
+  let out = "";
   child.stdout.on("data", (d) => (out += d.toString()));
   child.stderr.on("data", (d) => console.error("stderr:", d.toString()));
 
-  child.on("close", (code) => {
-    const resp = out.trim();
-    mem.push({ role: "assistant", content: resp });
-    writeMem(memName, mem);
-    res.json({ answer: resp });
+  child.on("close", () => {
+    const ans = out.trim();
+    mem.push({ role: "assistant", content: ans });
+    saveMem(memoryName, mem);
+    res.json({ answer: ans });
   });
 
-  child.stdin.write(fullPrompt);
+  child.stdin.write(fullPrompt + "\n");
   child.stdin.end();
 });
 
-app.listen(PORT, () => console.log(`🌐 Servir sur http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Server running: http://localhost:${PORT}`));
