@@ -20,28 +20,21 @@ app.post("/ask", (req, res) => {
   const prompt = req.body.prompt;
 
   const ollama = spawn("ollama", ["run", "mistral"]);
-
   let output = "";
+
   ollama.stdout.on("data", (data) => {
     output += data.toString();
   });
 
   ollama.stderr.on("data", (data) => {
-    console.error(`stderr: ${data}`);
+    console.error("stderr:", data.toString());
   });
 
   ollama.on("close", (code) => {
-    const lastBrace = output.lastIndexOf("}");
-    const jsonText = output.substring(0, lastBrace + 1);
-    try {
-      const parsed = JSON.parse(jsonText);
-      res.json({ answer: parsed.response || "Aucune réponse." });
-    } catch (e) {
-      res.json({ answer: "Erreur de parsing de la réponse Ollama." });
-    }
+    console.log("Ollama output brut:", output);
+    res.json({ answer: output.trim() });
   });
 
-  // On envoie le prompt à Ollama via stdin
   ollama.stdin.write(prompt + "\n");
   ollama.stdin.end();
 });
