@@ -4,82 +4,77 @@ const path = require("path");
 const { spawn } = require("child_process");
 
 const app = express();
-const PORT = 3000;
-
 app.use(express.static("public"));
 app.use(express.json());
 
-const memoryDir = path.join(__dirname, "memory");
-if (!fs.existsSync(memoryDir)) fs.mkdirSync(memoryDir);
-
-function memPath(name) {
-  return path.join(memoryDir, `${name}.json`);
-}
-function loadMem(name = "default") {
+// Charge le contexte JSON (déjà poussé !)
+function loadContext(name) {
+  const file = path.join(__dirname, "memory", "contexts", `${name}.json`);
   try {
-    const content = fs.readFileSync(memPath(name), "utf8");
-    const data = JSON.parse(content);
-    // Vérifie que c’est bien un tableau
-    return Array.isArray(data) ? data : [];
+    return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
-    return [
-      {
-        role: "system",
-        content: "Tu es un assistant utile et tu réponds en français.",
-      },
-    ];
+    return { context: "", ideas: [] };
   }
 }
 
-function saveMem(name, mem) {
-  fs.writeFileSync(memPath(name), JSON.stringify(mem, null, 2));
-}
-
-app.get("/memories", (req, res) => {
-  const names = fs
-    .readdirSync(memoryDir)
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => f.replace(".json", ""));
-  res.json(names);
-});
-
-app.get("/memories/:name", (req, res) => {
-  res.json(loadMem(req.params.name));
-});
-
+// Gère la POST /ask
 app.post("/ask", (req, res) => {
-  const { prompt, memoryName = "default" } = req.body;
-  const mem = loadMem(memoryName);
-  mem.push({ role: "user", content: prompt });
+  const { prompt, contextName } = req.body;
+  const ctxData = loadContext(contextName);
+  const ctx = ctxData.context;
 
-  const fullPrompt =
-    mem
-      .map((m) =>
-        m.role === "system"
-          ? ""
-          : `${m.role === "user" ? "Utilisateur" : "Assistant"} : ${m.content}`
-      )
-      .filter(Boolean)
-      .join("\n") + "\nAssistant :";
+  // Fichier mémoire qui conserve les sessions
+  const memFile = path.join(__dirname, "memory", `${contextName}.json`);
+  let memory = [];
+  try {
+    memory = JSON.parse(fs.readFileSync(memFile, "utf8"));
+  } catch {
+    // initialise si pas encore créé
+  }
 
-  const child = spawn("ollama", ["run", "llama3"], {
+  memory.push({ role: "user", content: prompt });
+
+  // Préparation du prompt complet
+  const fullPrompt = [
+    { role: "system", content: ctx },
+    ...memory
+      .filter((m) => m.role !== "system")
+      .map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+    { role: "assistant", content: "" },
+  ];
+
+  const cmd = spawn("ollama", ["run", "llama3"], {
     stdio: ["pipe", "pipe", "pipe"],
     shell: true,
   });
+  let output = "";
 
-  let out = "";
-  child.stdout.on("data", (d) => (out += d.toString()));
-  child.stderr.on("data", (d) => console.error("stderr:", d.toString()));
+  cmd.stdout.on("data", (d) => (output += d.toString()));
+  cmd.stderr.on("data", (d) => console.error("stderr:", d.toString()));
 
-  child.on("close", () => {
-    const ans = out.trim();
-    mem.push({ role: "assistant", content: ans });
-    saveMem(memoryName, mem);
-    res.json({ answer: ans });
+  cmd.on("close", () => {
+    const resp = output.trim();
+    memory.push({ role: "assistant", content: resp });
+    fs.writeFileSync(memFile, JSON.stringify(memory, null, 2));
+    res.json({ answer: resp });
   });
 
-  child.stdin.write(fullPrompt + "\n");
-  child.stdin.end();
+  // Envoie les messages en texte pour Ollama
+  fullPrompt.forEach((m) =>
+    cmd.stdin.write(
+      `${
+        m.role === "system"
+          ? ""
+          : m.role === "user"
+          ? "Utilisateur"
+          : "Assistant"
+      }: ${m.content}\n`
+    )
+  );
+  cmd.stdin.end();
 });
 
-app.listen(PORT, () => console.log(`Server running: http://localhost:${PORT}`));
+app.listen(3000, () => console.log("Server running on http://localhost:3000"));

@@ -2,81 +2,84 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <title>Dashboard IA avec Mémoire</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>🎥 Générateur de Vidéos Sport IA</title>
     <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
   </head>
-  <body class="p-4">
-    <h1>🤖 Dashboard IA avec Mémoire</h1>
+  <body class="bg-light">
+    <div class="container py-5">
+      <h1 class="mb-4">⚽ Générateur de contenu TikTok sport - IA</h1>
 
-    <div class="mb-3">
-      <label for="memorySelect">Contexte :</label>
-      <select id="memorySelect" class="form-select"></select>
+      <!-- Sélecteur de contexte -->
+      <div class="mb-4">
+        <label for="contextSelect" class="form-label"
+          >🎯 Choisis un axe de vidéo</label
+        >
+        <select id="contextSelect" class="form-select">
+          <option value="real_legends">📼 Interviews & Légendes</option>
+          <option value="fake_ia_moments">🤖 Moments créés par IA</option>
+          <option value="mystery_culture">🕵️ Culture & Mystères</option>
+        </select>
+      </div>
+
+      <!-- Formulaire de prompt -->
+      <form id="askForm">
+        <div class="mb-3">
+          <label for="prompt" class="form-label">💬 Pose ta question</label>
+          <textarea
+            id="prompt"
+            class="form-control"
+            rows="3"
+            placeholder="Ex : 'Imagine un match entre Pelé et Mbappé en 2035'"
+          ></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Envoyer</button>
+      </form>
+
+      <!-- Réponse IA -->
+      <div class="mt-4">
+        <h4>🎬 Réponse générée</h4>
+        <pre id="response" class="bg-white p-3 rounded border"></pre>
+      </div>
     </div>
 
-    <textarea
-      id="chatBox"
-      class="form-control mb-3"
-      rows="8"
-      readonly
-    ></textarea>
-
-    <div class="input-group mb-3">
-      <input
-        id="promptInput"
-        type="text"
-        class="form-control"
-        placeholder="Écris ta question…"
-      />
-      <button id="sendBtn" class="btn btn-primary">Envoyer</button>
-    </div>
-
+    <!-- Script JS -->
     <script>
-      let memName = "";
+      document
+        .getElementById("askForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
 
-      async function loadMemories() {
-        const res = await fetch("/memories");
-        const arr = await res.json();
-        const sel = document.getElementById("memorySelect");
-        arr.forEach((c) => sel.add(new Option(c, c)));
-        sel.onchange = loadHistory;
-        sel.selectedIndex = 0;
-        memName = sel.value;
-        loadHistory();
-      }
+          const prompt = document.getElementById("prompt").value.trim();
+          const contextName = document.getElementById("contextSelect").value;
+          const responseBox = document.getElementById("response");
 
-      async function loadHistory() {
-        memName = document.getElementById("memorySelect").value;
-        const res = await fetch(`/memories/${memName}`);
-        const hist = await res.json();
-        const cb = document.getElementById("chatBox");
-        cb.value =
-          hist
-            .filter((m) => m.role === "user" || m.role === "assistant")
-            .map((m) =>
-              m.role === "user"
-                ? `🗣️ Toi : ${m.content}`
-                : `🤖 IA : ${m.content}`
-            )
-            .join("\n\n") + "\n\n";
-        cb.scrollTop = cb.scrollHeight;
-      }
+          if (!prompt) {
+            responseBox.textContent =
+              "⛔ Merci d'entrer un prompt avant d'envoyer.";
+            return;
+          }
 
-      document.getElementById("sendBtn").onclick = async () => {
-        const prompt = document.getElementById("promptInput").value.trim();
-        if (!prompt) return;
-        document.getElementById("promptInput").value = "";
-        await fetch("/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt, memoryName: memName }),
+          responseBox.textContent = "⏳ Génération en cours...";
+
+          try {
+            const res = await fetch("/ask", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ prompt, contextName }),
+            });
+
+            const data = await res.json();
+            responseBox.textContent = data.answer || "❌ Aucune réponse reçue.";
+          } catch (error) {
+            responseBox.textContent =
+              "🚨 Erreur lors de l'envoi de la requête.";
+            console.error(error);
+          }
         });
-        loadHistory();
-      };
-
-      loadMemories();
     </script>
   </body>
 </html>
